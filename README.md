@@ -2,6 +2,10 @@
 
 Two-stage RAG system for legal contract analysis. Queries legal PDFs using a bi-encoder for dense retrieval (ChromaDB + BGE), a cross-encoder for re-ranking (ms-marco-MiniLM), and a local quantized LLM (Gemma 2 2B via llama-cpp) for answer synthesis with exact page citations.
 
+## Demo
+
+![LexAI User Interface](docs/demo2.png)
+
 ## Architecture
 
 ### High-Level System Architecture
