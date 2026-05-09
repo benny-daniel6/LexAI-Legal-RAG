@@ -4,16 +4,79 @@ Two-stage RAG system for legal contract analysis. Queries legal PDFs using a bi-
 
 ## Architecture
 
+### High-Level System Architecture
+
+```mermaid
+graph TD
+    subgraph Client
+        UI[Frontend SPA <br> HTML/CSS/Vanilla JS]
+    end
+
+    subgraph Docker_Compose_Network
+        subgraph FastAPI_Backend [FastAPI Backend]
+            Router[API Routers <br> /documents, /query]
+            Engine[RAG Engine]
+            Synthesizer[LLM Synthesizer <br> llama-cpp / Gemini]
+            CrossEnc[Cross-Encoder <br> ms-marco-MiniLM]
+            PDFProc[PDF Processor <br> PyMuPDF]
+        end
+        
+        subgraph Data_Layer
+            VectorDB[(ChromaDB <br> Persistent SQLite)]
+            FileSystem[(Local Storage <br> /uploads/UUID)]
+            ModelRegistry[(Model Storage <br> /models/GGUF)]
+        end
+    end
+
+    UI -- HTTP/REST --> Router
+    Router --> Engine
+    Router --> PDFProc
+    Engine -- Dense Retrieval --> VectorDB
+    Engine -- Re-ranking --> CrossEnc
+    Engine -- Generation --> Synthesizer
+    PDFProc -- Read/Write --> FileSystem
+    Synthesizer -- Load Weights --> ModelRegistry
 ```
-PDF Upload --> PyMuPDF Extraction --> ChromaDB (BGE Embeddings)
-                                          |
-                                    Dense Retrieval (top-20)
-                                          |
-                                    Cross-Encoder Re-ranking (top-6)
-                                          |
-                                    Gemma 2 2B (GGUF / llama-cpp)
-                                          |
-                                    Cited Answer + Confidence Scores
+
+### Two-Stage RAG Query Pipeline
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant RAGEngine as RAG Engine
+    participant VectorDB as Bi-Encoder (Chroma)
+    participant CrossEncoder as Cross-Encoder
+    participant LLM as Synthesizer (Llama.cpp)
+
+    User->>RAGEngine: POST /query (Question)
+    
+    rect rgb(20, 40, 60)
+    Note over RAGEngine,VectorDB: STAGE 1: Dense Retrieval
+    RAGEngine->>VectorDB: query(top_k=20)
+    activate VectorDB
+    VectorDB-->>RAGEngine: Top 20 candidate chunks
+    deactivate VectorDB
+    end
+
+    rect rgb(60, 40, 20)
+    Note over RAGEngine,CrossEncoder: STAGE 2: Re-ranking
+    RAGEngine->>CrossEncoder: predict(pairs=[[Q, Chunk1], ...])
+    activate CrossEncoder
+    CrossEncoder-->>RAGEngine: Raw Logits [2.5, -1.2, 4.1...]
+    deactivate CrossEncoder
+    RAGEngine->>RAGEngine: Sort descending, slice Top 6
+    RAGEngine->>RAGEngine: Convert Logits to Sigmoid Probabilities
+    end
+
+    rect rgb(20, 60, 40)
+    Note over RAGEngine,LLM: STAGE 3: Generation
+    RAGEngine->>LLM: generate(Prompt + Top 6 Context)
+    activate LLM
+    LLM-->>RAGEngine: Synthesized Answer + Citations
+    deactivate LLM
+    end
+
+    RAGEngine-->>User: QueryResponse (Answer + Citations)
 ```
 
 ## Quick Start
