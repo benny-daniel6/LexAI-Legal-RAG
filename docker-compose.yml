@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount models and chroma_db to persist data and avoid re-downloading
+      - ./models:/app/models
+      - ./chroma_db:/app/chroma_db
+      - ./uploads:/app/uploads
+    env_file:
+      - .env
+    restart: unless-stopped
+    # If using GPU, uncomment the following section (requires Docker Compose v1.28+)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

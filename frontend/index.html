@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexAI — Legal Intelligence Platform</title>
+  <meta name="description" content="AI-powered legal contract analysis with exact page citations and confidence scores." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+  <aside id="sidebar">
+    <!-- Logo -->
+    <div class="logo-block">
+      <div class="logo-icon">⚖</div>
+      <div>
+        <div class="logo-title">LexAI</div>
+        <div class="logo-sub">Legal Intelligence</div>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div id="health-badge" class="status-pill pill-checking">⏳ Connecting…</div>
+
+    <div class="divider"></div>
+
+    <!-- Upload -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Upload Contract</div>
+      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Upload PDF">
+        <div class="drop-icon">📄</div>
+        <div class="drop-text">Drop PDF here or <span class="drop-link">browse</span></div>
+        <div class="drop-hint">Max 50 MB · PDF only</div>
+        <input type="file" id="file-input" accept=".pdf" hidden />
+      </div>
+      <div id="upload-progress" class="upload-progress hidden">
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <span id="progress-label">Uploading…</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Document list -->
+    <div class="sidebar-section" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+      <div class="sidebar-label">Indexed Documents</div>
+      <div id="doc-list" class="doc-list"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- RAG Settings -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">RAG Settings</div>
+
+      <div class="setting-row">
+        <label for="top-k-slider">Chunks retrieved</label>
+        <span id="top-k-val" class="setting-val">6</span>
+      </div>
+      <input type="range" id="top-k-slider" class="slider" min="2" max="12" value="6" />
+
+      <div class="setting-row" style="margin-top:10px;">
+        <label for="threshold-slider">Min confidence</label>
+        <span id="threshold-val" class="setting-val">45%</span>
+      </div>
+      <input type="range" id="threshold-slider" class="slider" min="10" max="90" value="45" />
+    </div>
+  </aside>
+
+  <!-- ══════════════════════ MAIN ══════════════════════ -->
+  <div id="main">
+
+    <!-- ── LEFT PANEL: Chat + Citations ── -->
+    <div class="panel" id="panel-chat">
+
+      <!-- Chat section -->
+      <div class="chat-section">
+        <div class="section-label">Legal Q&amp;A</div>
+
+        <!-- Example questions (shown when chat is empty) -->
+        <div id="example-qs" class="example-grid">
+          <button class="example-btn" data-q="What are the indemnification obligations of each party?">What are the indemnification obligations of each party?</button>
+          <button class="example-btn" data-q="When does this agreement expire and what are the renewal terms?">When does this agreement expire and what are the renewal terms?</button>
+          <button class="example-btn" data-q="What are the governing law and jurisdiction provisions?">What are the governing law and jurisdiction provisions?</button>
+          <button class="example-btn" data-q="Under what conditions can either party terminate this agreement?">Under what conditions can either party terminate this agreement?</button>
+        </div>
+
+        <!-- Messages -->
+        <div id="messages" class="messages"></div>
+
+        <!-- Input area -->
+        <div class="input-area">
+          <textarea id="question-input" class="question-input" rows="3"
+            placeholder="Ask a legal question about your contract…"></textarea>
+          <div class="input-buttons">
+            <button id="analyse-btn" class="btn btn-primary">⚖️ Analyse</button>
+            <button id="clear-btn" class="btn btn-ghost">🗑 Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Citations section -->
+      <div class="citations-section">
+        <div class="section-label">Sources &amp; Citations</div>
+        <div id="citations" class="citations-list"></div>
+        <div id="citations-empty" class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div>Ask a question to see source citations</div>
+        </div>
+      </div>
+
+    </div><!-- /panel-chat -->
+
+    <!-- ── RIGHT PANEL: PDF Viewer ── -->
+    <div class="panel" id="panel-pdf">
+      <div class="section-label">Document Viewer</div>
+
+      <!-- Page navigation -->
+      <div class="pdf-nav" id="pdf-nav">
+        <button id="prev-page" class="btn btn-ghost btn-sm" disabled>◀ Prev</button>
+        <span id="page-info" class="page-info">—</span>
+        <button id="next-page" class="btn btn-ghost btn-sm" disabled>Next ▶</button>
+      </div>
+
+      <!-- Page display -->
+      <div class="pdf-viewport" id="pdf-viewport">
+        <div id="pdf-empty" class="empty-state">
+          <div class="empty-icon">📄</div>
+          <div>Upload and select a document<br>to view it here</div>
+        </div>
+        <img id="pdf-img" class="pdf-img hidden" alt="PDF page" />
+        <div id="pdf-loading" class="pdf-loading hidden">
+          <div class="spinner"></div>
+          <span>Rendering page…</span>
+        </div>
+      </div>
+    </div><!-- /panel-pdf -->
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

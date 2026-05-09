@@ -1,0 +1,41 @@
+.env
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Model weights
+models/
+adapters/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Vector DB
+chroma_db/
+
+# Uploaded PDFs
+uploads/
+
+# Logs
+logs/
+runs/
+wandb/
+*.log
+
+# Python envs
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
