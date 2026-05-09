@@ -32,7 +32,7 @@ def main():
                 print("Uploading sample_nda.pdf...")
                 page.set_input_files("#file-input", "data/sample_nda.pdf")
                 # Wait for upload to complete (progress bar hides)
-                page.wait_for_selector("#upload-progress", state="hidden", timeout=15000)
+                page.wait_for_selector("#upload-progress", state="hidden", timeout=60000)
                 time.sleep(1)
                 
                 # Now select the document in the sidebar
