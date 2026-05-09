@@ -336,7 +336,7 @@ async function sendQuery() {
     const top = citations[0];
     const hlTexts = citations
       .filter(c => c.page_num === top.page_num)
-      .map(c => c.text);
+      .map(c => c.text_snippet);
     loadPage(top.page_num, hlTexts);
   }
 
@@ -377,8 +377,8 @@ function renderCitations(citations) {
           <span class="citation-page">📄 Page ${c.page_num ?? '?'} · ${escHtml(c.source_file ?? '')}</span>
         </div>
         <div class="conf-bar"><div class="conf-fill ${tier}" style="width:${score}%"></div></div>
-        <div class="citation-text">${escHtml(c.text ?? '')}</div>
-        <button class="citation-jump" data-page="${c.page_num}" data-text="${escAttr(c.text ?? '')}">
+        <div class="citation-text">${escHtml(c.text_snippet ?? '')}</div>
+        <button class="citation-jump" data-page="${c.page_num}" data-text="${escAttr(c.text_snippet ?? '')}">
           ↗ Jump to page ${c.page_num}
         </button>
       </div>`;
@@ -391,7 +391,7 @@ function renderCitations(citations) {
       // Collect all citation texts on that page
       const hlTexts = state.citations
         .filter(c => c.page_num === pg)
-        .map(c => c.text);
+        .map(c => c.text_snippet);
       loadPage(pg, hlTexts);
     });
   });
