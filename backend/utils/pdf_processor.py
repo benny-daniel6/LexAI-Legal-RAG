@@ -54,6 +54,8 @@ def _split_into_chunks(
                     end = idx + len(sep)
                     break
         chunks.append((start, end))
+        if end == text_len:
+            break
         start = max(start + 1, end - overlap_chars)
 
     return chunks
