@@ -270,7 +270,6 @@ function renderMessages() {
   container.scrollTop = container.scrollHeight;
 }
 
-let typingInterval;
 
 function showTyping() {
   const container = document.getElementById('messages');
@@ -283,28 +282,14 @@ function showTyping() {
       <div class="typing-indicator" style="margin: 0; padding: 0;">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
-      <span id="typing-text" style="color: var(--text-primary); font-size: 0.9em; font-family: 'JetBrains Mono', monospace;">Agent is thinking...</span>
+      <span id="typing-text" style="color: #f1f5f9; font-size: 0.9em; font-family: 'JetBrains Mono', monospace;">Initializing agent...</span>
     </div>`;
   container.appendChild(el);
   container.scrollTop = container.scrollHeight;
-
-  const steps = [
-    "Agent is thinking...",
-    "Routing to specialized tool...",
-    "Executing tool action...",
-    "Analyzing observations...",
-    "Synthesizing final answer..."
-  ];
-  let i = 0;
-  typingInterval = setInterval(() => {
-    i = (i + 1) % steps.length;
-    const textEl = document.getElementById('typing-text');
-    if (textEl) textEl.textContent = steps[i];
-  }, 2000);
+  // No fake loop — real-time SSE events from the backend update #typing-text
 }
 
 function removeTyping() {
-  clearInterval(typingInterval);
   document.getElementById('typing-msg')?.remove();
 }
 
