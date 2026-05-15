@@ -38,3 +38,7 @@ numexpr>=2.9.0
 
 # Evaluation
 evaluate>=0.4.1
+
+# Scalability & Reliability
+tenacity>=8.2.0
+cachetools>=5.3.0

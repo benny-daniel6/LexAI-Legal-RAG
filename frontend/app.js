@@ -270,6 +270,8 @@ function renderMessages() {
   container.scrollTop = container.scrollHeight;
 }
 
+let typingInterval;
+
 function showTyping() {
   const container = document.getElementById('messages');
   const el = document.createElement('div');
@@ -277,16 +279,32 @@ function showTyping() {
   el.id = 'typing-msg';
   el.innerHTML = `
     <div class="avatar ai">⚖️</div>
-    <div class="bubble">
-      <div class="typing-indicator">
+    <div class="bubble" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+      <div class="typing-indicator" style="margin: 0; padding: 0;">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
+      <span id="typing-text" style="color: var(--text-muted); font-size: 0.9em; font-family: 'JetBrains Mono', monospace;">Agent is thinking...</span>
     </div>`;
   container.appendChild(el);
   container.scrollTop = container.scrollHeight;
+
+  const steps = [
+    "Agent is thinking...",
+    "Routing to specialized tool...",
+    "Executing tool action...",
+    "Analyzing observations...",
+    "Synthesizing final answer..."
+  ];
+  let i = 0;
+  typingInterval = setInterval(() => {
+    i = (i + 1) % steps.length;
+    const textEl = document.getElementById('typing-text');
+    if (textEl) textEl.textContent = steps[i];
+  }, 2000);
 }
 
 function removeTyping() {
+  clearInterval(typingInterval);
   document.getElementById('typing-msg')?.remove();
 }
 
