@@ -9,7 +9,7 @@ services:
       - ./chroma_db:/chroma/chroma
 
   llama-cpp:
-    image: ghcr.io/ggerganov/llama.cpp:server
+    image: ghcr.io/ggml-org/llama.cpp:server
     ports:
       - "8080:8080"
     volumes:
