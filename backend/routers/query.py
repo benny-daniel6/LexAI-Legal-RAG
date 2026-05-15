@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from backend.config import get_settings
@@ -111,7 +113,6 @@ async def semantic_search(
         for doc, meta, dist in zip(docs, metas, dists)
     ]
 
-
 @router.get("/health")
 def health():
     from backend.main import app
@@ -121,3 +122,65 @@ def health():
         "llm_ready": syn.is_ready,
         "llm_backend": syn._backend,
     }
+
+
+@router.post("/stream")
+async def stream_query(
+    req: QueryRequest,
+    engine: AgenticRAG = Depends(_get_engine),
+):
+    """SSE endpoint that streams agent step events in real-time."""
+    event_queue: asyncio.Queue = asyncio.Queue()
+
+    async def on_step(step_data: dict):
+        await event_queue.put(step_data)
+
+    async def generator():
+        # Run the query in background, pushing events to the queue
+        task = asyncio.create_task(
+            engine.query(
+                question=req.question,
+                doc_id=req.doc_id,
+                top_k=req.top_k,
+                confidence_threshold=req.confidence_threshold,
+                on_step=on_step,
+            )
+        )
+
+        while not task.done():
+            try:
+                event = await asyncio.wait_for(event_queue.get(), timeout=1.0)
+                yield f"data: {json.dumps(event)}\n\n"
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+
+        # Drain remaining events
+        while not event_queue.empty():
+            event = event_queue.get_nowait()
+            yield f"data: {json.dumps(event)}\n\n"
+
+        # Send the final result
+        result: RAGResponse = task.result()
+        final = {
+            "type": "done",
+            "answer": result.answer,
+            "citations": [
+                {
+                    "chunk_id": c.chunk_id,
+                    "source_file": c.source_file,
+                    "page_num": c.page_num,
+                    "bbox": c.bbox,
+                    "text_snippet": c.text_snippet,
+                    "confidence": c.confidence,
+                    "confidence_label": c.confidence_label,
+                    "confidence_color": c.confidence_color,
+                }
+                for c in result.citations
+            ],
+            "model_backend": result.model_backend,
+            "total_chunks_searched": result.total_chunks_searched,
+            "warning": result.warning,
+        }
+        yield f"data: {json.dumps(final)}\n\n"
+
+    return StreamingResponse(generator(), media_type="text/event-stream")

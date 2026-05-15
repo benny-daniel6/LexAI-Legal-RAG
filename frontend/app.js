@@ -283,7 +283,7 @@ function showTyping() {
       <div class="typing-indicator" style="margin: 0; padding: 0;">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
-      <span id="typing-text" style="color: var(--text-muted); font-size: 0.9em; font-family: 'JetBrains Mono', monospace;">Agent is thinking...</span>
+      <span id="typing-text" style="color: var(--text-primary); font-size: 0.9em; font-family: 'JetBrains Mono', monospace;">Agent is thinking...</span>
     </div>`;
   container.appendChild(el);
   container.scrollTop = container.scrollHeight;
@@ -326,36 +326,71 @@ async function sendQuery() {
   input.value = '';
   showTyping();
 
-  const result = await apiPost('/api/query/', {
-    question,
-    doc_id:               state.selectedDoc.doc_id,
-    top_k:                state.topK,
-    confidence_threshold: state.threshold,
-  });
+  try {
+    const response = await fetch(API + '/api/query/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        doc_id:               state.selectedDoc.doc_id,
+        top_k:                state.topK,
+        confidence_threshold: state.threshold,
+      }),
+    });
 
-  removeTyping();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalResult = null;
 
-  const answer    = result?.answer    ?? 'No answer generated.';
-  const citations = result?.citations ?? [];
-  const backend   = result?.model_backend ?? 'unknown';
-  const warning   = result?.warning ?? '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-  const prefix = warning === 'no_results'      ? '⚠️ '
-               : warning === 'low_confidence'   ? '🔶 '
-               : '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          const textEl = document.getElementById('typing-text');
+          if (event.type === 'routing' && textEl) {
+            textEl.textContent = '\u{1F9E0} ' + event.message;
+          } else if (event.type === 'tool' && textEl) {
+            const icons = { vector_search: '\u{1F4DA}', web_scraper: '\u{1F310}', calculator: '\u{1F9EE}' };
+            textEl.textContent = (icons[event.tool] || '\u{1F527}') + ' ' + event.message;
+          } else if (event.type === 'synthesis' && textEl) {
+            textEl.textContent = '\u2728 ' + event.message;
+          } else if (event.type === 'done') {
+            finalResult = event;
+          }
+        } catch {}
+      }
+    }
 
-  addMessage('ai', prefix + answer, backend);
+    removeTyping();
 
-  state.citations = citations;
-  renderCitations(citations);
-
-  // Auto-jump to highest-confidence citation's page
-  if (citations.length > 0) {
-    const top = citations[0];
-    const hlTexts = citations
-      .filter(c => c.page_num === top.page_num)
-      .map(c => c.text_snippet);
-    loadPage(top.page_num, hlTexts);
+    if (finalResult) {
+      const answer    = finalResult.answer ?? 'No answer generated.';
+      const citations = finalResult.citations ?? [];
+      const backend   = finalResult.model_backend ?? 'unknown';
+      const warning   = finalResult.warning ?? '';
+      const prefix = warning === 'no_results' ? '\u26A0\uFE0F ' : warning === 'low_confidence' ? '\u{1F536} ' : '';
+      addMessage('ai', prefix + answer, backend);
+      state.citations = citations;
+      renderCitations(citations);
+      if (citations.length > 0) {
+        const top = citations[0];
+        const hlTexts = citations.filter(c => c.page_num === top.page_num).map(c => c.text_snippet);
+        loadPage(top.page_num, hlTexts);
+      }
+    } else {
+      addMessage('ai', 'No answer generated.', 'unknown');
+    }
+  } catch (e) {
+    removeTyping();
+    addMessage('ai', 'Error: ' + e.message, 'error');
   }
 
   state.analysing = false;
