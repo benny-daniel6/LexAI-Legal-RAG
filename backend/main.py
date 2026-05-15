@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +14,20 @@ from backend.models.agent import AgenticRAG
 from backend.models.synthesizer import Synthesizer
 from backend.models.vector_store import VectorStore
 from backend.routers import documents, query
+
+# ── Persistent logging (survives container restarts via volume mount) ─────────
+_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+logger.add(
+    str(_LOG_DIR / "lexai.log"),
+    rotation="50 MB",
+    retention="7 days",
+    compression="gz",
+    format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
+    level="INFO",
+    enqueue=True,  # thread-safe async logging
+)
 
 
 @asynccontextmanager

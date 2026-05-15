@@ -27,6 +27,7 @@ services:
       - llama-cpp
     volumes:
       - ./uploads:/app/uploads
+      - ./logs:/app/logs
     env_file:
       - .env
     environment:

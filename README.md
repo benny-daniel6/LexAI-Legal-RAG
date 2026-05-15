@@ -17,7 +17,8 @@ What separates LexAI from a standard RAG pipeline?
 - **Two-Stage RAG Fallback:** When querying internal documents, it uses high-recall dense retrieval (Bi-Encoder) followed by high-precision re-ranking (Cross-Encoder) to ensure the LLM receives the absolute best context.
 - **Fault Tolerance:** External tool calls and LLM inference are wrapped with `tenacity` exponential-backoff retries to survive transient failures without crashing the request.
 - **Query Caching:** An LRU TTL cache returns identical queries in <10ms, eliminating redundant LLM inference under load.
-- **Structured Observability:** Every agent query emits a JSON trace with a unique `trace_id`, per-step latency breakdowns, tool selections, and error context — enabling full auditability and performance debugging without external services.
+- **Structured Observability:** Every agent query emits a JSON trace with a unique `trace_id`, per-step latency breakdowns, tool selections, and error context — persisted to `logs/lexai.log` with 50 MB rotation and 7-day retention for post-mortem analysis.
+- **Graceful Degradation:** When a tool fails mid-execution, the error is fed back into the ReAct loop as an observation. The LLM autonomously re-routes to a different tool or synthesizes with partial context — the system never crashes or returns an empty response.
 - **Semantic Evaluation Pipeline:** A dual-metric evaluation script (`scripts/eval.py`) validates model quality using Semantic Textual Similarity (cosine embedding distance) and LLM-as-a-Judge scoring (Accuracy + Relevance on a 1–5 scale).
 
 ## Demo
@@ -196,7 +197,7 @@ Measured on an i5 12th Gen / 16 GB RAM / CPU-only inference:
 
 ## Observability
 
-Every agent query emits a structured JSON trace to `loguru`:
+Every agent query emits a structured JSON trace to `loguru`, persisted to `logs/lexai.log` with 50 MB rotation and 7-day retention. In Docker deployments, `logs/` is volume-mounted to the host for post-mortem analysis:
 
 ```json
 {
@@ -209,11 +210,20 @@ Every agent query emits a structured JSON trace to `loguru`:
     {"step": 1, "type": "routing", "tool": "vector_search", "latency_ms": 18200.5},
     {"step": 2, "type": "tool_execution", "tool": "vector_search", "latency_ms": 260.3},
     {"step": 3, "type": "synthesis", "latency_ms": 37800.2}
-  ]
+  ],
+  "error": ""
 }
 ```
 
-This enables full audit trails, latency bottleneck identification, and performance debugging without external observability platforms.
+### Graceful Degradation
+
+When a tool fails mid-execution, the agent does **not** crash or return an empty response. Instead:
+
+1. The error is tagged as `[TOOL_ERROR]` and appended as an observation in the ReAct history.
+2. On the next loop iteration, the LLM **sees** the failure and can autonomously re-route to a different tool or decide to synthesize with partial context.
+3. If all iterations are exhausted with errors, the agent synthesizes the best possible answer from whatever context it collected and logs the full degradation trace for debugging.
+
+This ensures the system always returns a response, even under partial failure — a critical requirement for production systems.
 
 ## Evaluation
 
