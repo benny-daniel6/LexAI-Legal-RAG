@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.config import get_settings
-from backend.models.rag_engine import RAGEngine, RAGResponse
+from backend.models.agent import AgenticRAG, RAGResponse
 from backend.models.vector_store import VectorStore
 from backend.utils.citation_builder import Citation
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
 
-def _get_engine() -> RAGEngine:
+def _get_engine() -> AgenticRAG:
     from backend.main import app
     return app.state.rag_engine
 
@@ -64,7 +64,7 @@ class SearchResult(BaseModel):
 @router.post("/", response_model=QueryResponse)
 async def run_query(
     req: QueryRequest,
-    engine: RAGEngine = Depends(_get_engine),
+    engine: AgenticRAG = Depends(_get_engine),
 ):
     result: RAGResponse = await engine.query(
         question=req.question,

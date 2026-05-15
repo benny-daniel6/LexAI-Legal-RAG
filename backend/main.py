@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from backend.models.rag_engine import RAGEngine
+from backend.models.agent import AgenticRAG
 from backend.models.synthesizer import Synthesizer
 from backend.models.vector_store import VectorStore
 from backend.routers import documents, query
@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
     app.state.vector_store = VectorStore()
     app.state.synthesizer = Synthesizer()
-    app.state.rag_engine = RAGEngine(app.state.vector_store, app.state.synthesizer)
+    app.state.rag_engine = AgenticRAG(app.state.vector_store, app.state.synthesizer)
 
     llm_status = "ready" if app.state.synthesizer.is_ready else "model not loaded"
     logger.info(f"LLM backend ({app.state.synthesizer._backend}): {llm_status}")
