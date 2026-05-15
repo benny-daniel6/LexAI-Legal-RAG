@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # LLM
     model_path: str = "./models/gemma-2-2b-it-Q4_K_M.gguf"
     llm_backend: str = "local"
+    llm_api_url: str = "http://localhost:8080/v1"
     model_ctx: int = 4096
     model_threads: int = 8
     max_answer_tokens: int = 512
@@ -24,6 +25,8 @@ class Settings(BaseSettings):
 
     # ChromaDB
     chroma_path: str = "./chroma_db"
+    chroma_host: str = "localhost"
+    chroma_port: int = 8002
 
     # Embedding
     embedding_model: str = "BAAI/bge-small-en-v1.5"

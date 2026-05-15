@@ -1,19 +1,39 @@
 version: '3.8'
 
 services:
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./chroma_db:/chroma/chroma
+
+  llama-cpp:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models
+    command: -m /models/gemma-2-2b-it-Q4_K_M.gguf --host 0.0.0.0 --port 8080 -c 4096 -t 8
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    depends_on:
+      - chromadb
+      - llama-cpp
     volumes:
-      # Mount models and chroma_db to persist data and avoid re-downloading
-      - ./models:/app/models
-      - ./chroma_db:/app/chroma_db
       - ./uploads:/app/uploads
     env_file:
       - .env
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - LLM_API_URL=http://llama-cpp:8080/v1
+      - LLM_BACKEND=local
     restart: unless-stopped
     # If using GPU, uncomment the following section (requires Docker Compose v1.28+)
     # deploy:
