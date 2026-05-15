@@ -1,6 +1,19 @@
-# LexAI
+# LexAI: Agentic Knowledge Assistant
 
-Two-stage RAG system for legal contract analysis. Queries legal PDFs using a bi-encoder for dense retrieval (ChromaDB + BGE), a cross-encoder for re-ranking (ms-marco-MiniLM), and a local quantized LLM (Gemma 2 2B via llama-cpp) for answer synthesis with exact page citations.
+LexAI is an advanced **Agentic RAG System** designed for absolute data privacy and dynamic reasoning. Moving beyond standard RAG, LexAI features an autonomous local agent (powered by a quantized Gemma 2 2B via llama-cpp) that evaluates and routes user queries on the fly. 
+
+Whether it needs to evaluate mathematical expressions, scrape live web data for current events, or perform a two-stage semantic vector search across internal legal contracts (using ChromaDB, BGE embeddings, and MS-MARCO Cross-Encoder re-ranking), the system chooses the right tool dynamically and operates **100% locally with zero data leakage**.
+
+## 🔥 Extraordinary Agentic Features
+
+What separates LexAI from a standard RAG pipeline?
+
+- **Dynamic Tool Routing:** Instead of blindly querying a vector database for every prompt, LexAI acts as an intelligent router. It reads the query and autonomously delegates it to one of three specialized tools:
+  - 🧮 **Python Calculator (`numexpr`)**: Evaluates complex math equations safely.
+  - 🌐 **Live Web Scraper (`duckduckgo-search`)**: Fetches real-time news and events from the web.
+  - 📚 **Vector Search Pipeline**: Queries the local ChromaDB for contract analysis.
+- **Zero-Data Leakage Architecture:** Both the routing logic and the answer synthesis are handled by a local `llama-cpp` quantized model. No cloud dependencies are required.
+- **Two-Stage RAG Fallback:** When querying internal documents, it uses high-recall dense retrieval (Bi-Encoder) followed by high-precision re-ranking (Cross-Encoder) to ensure the LLM receives the absolute best context.
 
 ## Demo
 
@@ -19,7 +32,8 @@ graph TD
     subgraph Docker_Compose_Network
         subgraph FastAPI_Backend [FastAPI Backend]
             Router[API Routers <br> /documents, /query]
-            Engine[RAG Engine]
+            Agent[Agentic RAG Controller]
+            Tools[Tool Suite <br> Calculator, WebScraper, VectorSearch]
             Synthesizer[LLM Synthesizer <br> llama-cpp / Gemini]
             CrossEnc[Cross-Encoder <br> ms-marco-MiniLM]
             PDFProc[PDF Processor <br> PyMuPDF]
@@ -33,54 +47,53 @@ graph TD
     end
 
     UI -- HTTP/REST --> Router
-    Router --> Engine
+    Router --> Agent
+    Agent -- Zero-Shot Route --> Synthesizer
+    Agent -- Execute --> Tools
+    Tools -- Dense Retrieval --> VectorDB
+    Tools -- Re-ranking --> CrossEnc
+    Agent -- Synthesis --> Synthesizer
     Router --> PDFProc
-    Engine -- Dense Retrieval --> VectorDB
-    Engine -- Re-ranking --> CrossEnc
-    Engine -- Generation --> Synthesizer
     PDFProc -- Read/Write --> FileSystem
     Synthesizer -- Load Weights --> ModelRegistry
 ```
 
-### Two-Stage RAG Query Pipeline
+### Agentic Query Pipeline
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant RAGEngine as RAG Engine
-    participant VectorDB as Bi-Encoder (Chroma)
-    participant CrossEncoder as Cross-Encoder
+    participant Agent as Agentic Controller
     participant LLM as Synthesizer (Llama.cpp)
+    participant Tools as Tool Suite (Calc, Web, DB)
 
-    User->>RAGEngine: POST /query (Question)
+    User->>Agent: POST /query (Question)
     
-    rect rgb(20, 40, 60)
-    Note over RAGEngine,VectorDB: STAGE 1: Dense Retrieval
-    RAGEngine->>VectorDB: query(top_k=20)
-    activate VectorDB
-    VectorDB-->>RAGEngine: Top 20 candidate chunks
-    deactivate VectorDB
-    end
-
-    rect rgb(60, 40, 20)
-    Note over RAGEngine,CrossEncoder: STAGE 2: Re-ranking
-    RAGEngine->>CrossEncoder: predict(pairs=[[Q, Chunk1], ...])
-    activate CrossEncoder
-    CrossEncoder-->>RAGEngine: Raw Logits [2.5, -1.2, 4.1...]
-    deactivate CrossEncoder
-    RAGEngine->>RAGEngine: Sort descending, slice Top 6
-    RAGEngine->>RAGEngine: Convert Logits to Sigmoid Probabilities
-    end
-
-    rect rgb(20, 60, 40)
-    Note over RAGEngine,LLM: STAGE 3: Generation
-    RAGEngine->>LLM: generate(Prompt + Top 6 Context)
+    rect rgb(40, 20, 60)
+    Note over Agent,LLM: STAGE 1: Routing
+    Agent->>LLM: generate_raw(Router Prompt + Question)
     activate LLM
-    LLM-->>RAGEngine: Synthesized Answer + Citations
+    LLM-->>Agent: JSON Tool Decision (e.g., {"tool": "web_scraper", "input": "NASA news"})
     deactivate LLM
     end
 
-    RAGEngine-->>User: QueryResponse (Answer + Citations)
+    rect rgb(60, 40, 20)
+    Note over Agent,Tools: STAGE 2: Execution
+    Agent->>Tools: tool.run(input)
+    activate Tools
+    Tools-->>Agent: Tool Output / Context
+    deactivate Tools
+    end
+
+    rect rgb(20, 60, 40)
+    Note over Agent,LLM: STAGE 3: Generation
+    Agent->>LLM: generate(Knowledge Assistant Prompt + Context + Question)
+    activate LLM
+    LLM-->>Agent: Synthesized Answer
+    deactivate LLM
+    end
+
+    Agent-->>User: QueryResponse (Answer)
 ```
 
 ## Quick Start
@@ -120,12 +133,13 @@ backend/
   main.py                 # FastAPI entrypoint, lifespan model loading
   config.py               # Pydantic settings from .env
   models/
-    rag_engine.py          # Two-stage retrieve -> re-rank -> generate
+    agent.py               # Agentic RAG Controller (Routing & Execution)
+    tools.py               # Calculator, WebScraper, and VectorSearch tools
     vector_store.py        # ChromaDB wrapper, BGE embeddings
     synthesizer.py         # llama-cpp / Gemini LLM abstraction
   routers/
     documents.py           # Upload, list, delete, PDF rendering
-    query.py               # RAG query and semantic search endpoints
+    query.py               # Agentic RAG query and semantic search endpoints
   utils/
     pdf_processor.py       # PyMuPDF text extraction with bounding boxes
     citation_builder.py    # Logit-to-probability, confidence tiers
@@ -186,7 +200,8 @@ Measured on an i5 12th Gen / 16 GB RAM:
 | Vector DB | ChromaDB (persistent, cosine) |
 | Re-ranking | cross-encoder/ms-marco-MiniLM-L-6-v2 |
 | LLM | llama-cpp-python (Gemma 2 2B Q4_K_M) |
-| PDF | PyMuPDF |
+| Web Scraper | duckduckgo-search |
+| Safe Math | numexpr |
 | Backend | FastAPI + Uvicorn |
 | Frontend | Vanilla JS |
 | Fine-tuning | PyTorch + PEFT/QLoRA + TRL |
